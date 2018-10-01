@@ -7,31 +7,37 @@ import peakutils
 from scipy.optimize import curve_fit
 
 def getNum(f):
+    #key function for sorting files by the number at the end of their filename
     return extract(f.fileName())
     
 def extract(text):
+    #Strips the number from the end of text and returns it as a float
     for c in range(len(text)):
         if text[c].isdigit() or text[c] == '-':
             return float(text[c:].split('.')[0])
      
 def updateText():
+    #Updates the contents of the text fields to reflect the positions of the selector regions
     lowBound.setText(str(round(select.getRegion()[0], 4)))
     highBound.setText(str(round(select.getRegion()[1], 4)))
     sLowBound.setText(str(round(secselect.getRegion()[0], 4)))
     sHighBound.setText(str(round(secselect.getRegion()[1], 4)))
     
 def updateBounds():
+    #Updates the positions of the selector regions on the graph to reflect the contents of the text fields
     select.setRegion([float(lowBound.text()),float(highBound.text())])
     secselect.setRegion([float(sLowBound.text()),float(sHighBound.text())])
     
 def fileBrowser():
+    #Opens file browser to import data
     directory = QFileDialog.getExistingDirectory(parent=None, caption="Choose Data Directory")
     dirDisp.setText(directory)
     importData()
 
 def importData():
-    
+    #Imports data files from the selected folder
     if dirDisp.text() != "":
+        #Initialize window elements
         current = QtCore.QDir(dirDisp.text())
         fileinfo = current.entryInfoList(sort=QtCore.QDir.Name)
         checks.clear()
@@ -57,10 +63,11 @@ def importData():
         ##WORKAROUND (to remove nonsensical '..' files)
         fileinfo = fileinfo[1:]
         
+        #sort files by terminal number
         fileinfo.sort(key=getNum)
         files = [f.fileName() for f in fileinfo]
          
-        #Set up graph colors
+        #Set up graph color spectrum
         x = np.linspace(1,3,len(files))
         red = np.interp(x, [1,2,3], [0,128,255])
         green = np.interp(x, [1,2,3], [128,90,128])
@@ -69,6 +76,7 @@ def importData():
         for q in range(len(files)):
             
             colors.append((red[q], green[q], blue[q]))
+            
             #Set up checklist
             checks.append(QtGui.QCheckBox(files[q]))
             checks[q].setChecked(True)
@@ -115,11 +123,14 @@ def importData():
         updateFits()
     
 def resetBounds():
+    #Sets the selector regions to default positions
     view = spectraPlots.getPlotItem().getViewBox().viewRange()[0]
     select.setRegion([view[1]*.25, view[1]*.45])
     secselect.setRegion([view[1]*.55, view[1]*.75])
 
 def updatePlots():
+    #Clears graph tabs and updates checklist data
+    #always called with updateFits
     plotted.clear()
     spectraPlots.clear()
     spectraPlots.getPlotItem().addItem(select)
@@ -135,10 +146,13 @@ def updatePlots():
             plotted.append(c)
 
 def checkHandler():
+    #Called when checkboxes are altered
     updatePlots()
     updateFits()
 
 def updateFits():
+    #Updates graph tab contents
+    #always called with updatePlots
     stdev.clear()
     fwhm.clear()
     area.clear()
@@ -149,6 +163,7 @@ def updateFits():
     srsqrd.clear()
     ratios.clear()
     pltemps.clear()
+    #Step through list of checked data sets and trim out the selected regions
     for p in range(len(plotted)):
         indexes = [0,0,0,0]
         for x in data[2*plotted[p]]:
@@ -166,6 +181,7 @@ def updateFits():
         sxdat = np.asarray(data[2*plotted[p]][indexes[2]:indexes[3]])
         sydat = np.asarray(data[2*plotted[p]+1][indexes[2]:indexes[3]])
             
+        #perform peak fitting and refinement
         params = peakutils.peak.gaussian_fit(xdat, ydat, center_only=False)
         refined, povc = curve_fit(peakutils.peak.gaussian,xdat,ydat, params)
         sparams = peakutils.peak.gaussian_fit(sxdat, sydat, center_only=False)
@@ -211,6 +227,7 @@ def updateFits():
     rsqrdPlots.plot(pltemps,srsqrd,pen=pen2,symbol='s',symbolBrush=brushes)
 
 def export():
+    #write to a text file
     savename = QFileDialog.getSaveFileName(caption="Export To...",filter="Text files (*.txt)")
     with open(savename[0], "w") as f:
         f.write("Temperatures,xMin1,xMax1,StdDev1,FWHM1,Area1,Rsqr1,xMin2,xMax2,StdDev2,FWHM2,Area2,Rsqr2,Ratios\n")
